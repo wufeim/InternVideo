@@ -7,10 +7,10 @@ from torch import _VF
 from torch._jit_internal import Optional, Tuple
 from torch.overrides import has_torch_function, handle_torch_function
 
-from torch.nn.functional import _pad, linear, softmax, dropout
+from torch.nn.functional import pad, linear, softmax, dropout
 
 Tensor = torch.Tensor
-pad = _pad
+# pad = _pad
 
 
 def multi_head_attention_forward(query: Tensor,
