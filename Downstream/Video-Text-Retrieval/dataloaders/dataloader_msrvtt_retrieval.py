@@ -79,9 +79,9 @@ class MSRVTT_DataLoader(Dataset):
         n_caption = len(choice_video_ids)
 
         k = n_caption
-        pairs_text = np.zeros((k, self.max_words), dtype=np.long)
-        pairs_mask = np.zeros((k, self.max_words), dtype=np.long)
-        pairs_segment = np.zeros((k, self.max_words), dtype=np.long)
+        pairs_text = np.zeros((k, self.max_words), dtype=np.int_)
+        pairs_mask = np.zeros((k, self.max_words), dtype=np.int_)
+        pairs_segment = np.zeros((k, self.max_words), dtype=np.int_)
 
         for i, video_id in enumerate(choice_video_ids):
             words = self.tokenizer.tokenize(sentence)
@@ -111,16 +111,16 @@ class MSRVTT_DataLoader(Dataset):
 
     def _get_rawvideo_dec(self, choice_video_ids, s=None, e=None):
         # speed up video decode via decord.
-        # video_mask = np.zeros(self.max_frames, dtype=np.long)
-        video_mask = np.zeros((len(choice_video_ids), self.max_frames), dtype=np.long)
+        # video_mask = np.zeros(self.max_frames, dtype=np.int_)
+        video_mask = np.zeros((len(choice_video_ids), self.max_frames), dtype=np.int_)
         
         # max_video_length = 0
         max_video_length = [0] * len(choice_video_ids)
 
         # T x 3 x H x W
-        # video = np.zeros((self.max_frames, 3, self.image_resolution, self.image_resolution), dtype=np.float)
+        # video = np.zeros((self.max_frames, 3, self.image_resolution, self.image_resolution), dtype=np.single)
         video = np.zeros((len(choice_video_ids), self.max_frames, 1, 3,
-                          self.image_resolution, self.image_resolution), dtype=np.float)
+                          self.image_resolution, self.image_resolution), dtype=np.single)
 
         if s is None:
             start_time, end_time = None, None
@@ -186,12 +186,12 @@ class MSRVTT_DataLoader(Dataset):
         return video, video_mask
     
     def _get_rawvideo(self, choice_video_ids):
-        video_mask = np.zeros((len(choice_video_ids), self.max_frames), dtype=np.long)
+        video_mask = np.zeros((len(choice_video_ids), self.max_frames), dtype=np.int_)
         max_video_length = [0] * len(choice_video_ids)
 
         # Pair x L x T x 3 x H x W
         video = np.zeros((len(choice_video_ids), self.max_frames, 1, 3,
-                          self.rawVideoExtractor.size, self.rawVideoExtractor.size), dtype=np.float)
+                          self.rawVideoExtractor.size, self.rawVideoExtractor.size), dtype=np.single)
 
         for i, video_id in enumerate(choice_video_ids):
             # Individual for YoucokII dataset, due to it video format
@@ -318,9 +318,9 @@ class MSRVTT_TrainDataLoader(Dataset):
     def _get_text(self, video_id, caption=None):
         k = 1
         choice_video_ids = [video_id]
-        pairs_text = np.zeros((k, self.max_words), dtype=np.long)
-        pairs_mask = np.zeros((k, self.max_words), dtype=np.long)
-        pairs_segment = np.zeros((k, self.max_words), dtype=np.long)
+        pairs_text = np.zeros((k, self.max_words), dtype=np.int_)
+        pairs_mask = np.zeros((k, self.max_words), dtype=np.int_)
+        pairs_segment = np.zeros((k, self.max_words), dtype=np.int_)
 
         for i, video_id in enumerate(choice_video_ids):
             if caption is not None:
@@ -360,16 +360,16 @@ class MSRVTT_TrainDataLoader(Dataset):
 
     def _get_rawvideo_dec(self, choice_video_ids, s=None, e=None):
         # speed up video decode via decord.
-        # video_mask = np.zeros(self.max_frames, dtype=np.long)
-        video_mask = np.zeros((len(choice_video_ids), self.max_frames), dtype=np.long)
+        # video_mask = np.zeros(self.max_frames, dtype=np.int_)
+        video_mask = np.zeros((len(choice_video_ids), self.max_frames), dtype=np.int_)
         
         # max_video_length = 0
         max_video_length = [0] * len(choice_video_ids)
 
         # T x 3 x H x W
-        # video = np.zeros((self.max_frames, 3, self.image_resolution, self.image_resolution), dtype=np.float)
+        # video = np.zeros((self.max_frames, 3, self.image_resolution, self.image_resolution), dtype=np.single)
         video = np.zeros((len(choice_video_ids), self.max_frames, 1, 3,
-                          self.image_resolution, self.image_resolution), dtype=np.float)
+                          self.image_resolution, self.image_resolution), dtype=np.single)
 
         if s is None:
             start_time, end_time = None, None
@@ -435,12 +435,12 @@ class MSRVTT_TrainDataLoader(Dataset):
         return video, video_mask
     
     def _get_rawvideo(self, choice_video_ids):
-        video_mask = np.zeros((len(choice_video_ids), self.max_frames), dtype=np.long)
+        video_mask = np.zeros((len(choice_video_ids), self.max_frames), dtype=np.int_)
         max_video_length = [0] * len(choice_video_ids)
 
         # Pair x L x T x 3 x H x W
         video = np.zeros((len(choice_video_ids), self.max_frames, 1, 3,
-                          self.rawVideoExtractor.size, self.rawVideoExtractor.size), dtype=np.float)
+                          self.rawVideoExtractor.size, self.rawVideoExtractor.size), dtype=np.single)
 
         for i, video_id in enumerate(choice_video_ids):
             # Individual for YoucokII dataset, due to it video format
