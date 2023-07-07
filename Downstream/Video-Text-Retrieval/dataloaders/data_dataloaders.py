@@ -38,7 +38,7 @@ def dataloader_msrvtt_train(args, tokenizer):
 
 def dataloader_msrvtt_test(args, tokenizer, subset="test"):
     msrvtt_testset = MSRVTT_DataLoader(
-        csv_path=args.val_csv,
+        csv_path=args.val_csv if hasattr(args, 'val_csv') else None,
         features_path=args.features_path,
         max_words=args.max_words,
         feature_framerate=args.feature_framerate,
@@ -46,6 +46,7 @@ def dataloader_msrvtt_test(args, tokenizer, subset="test"):
         max_frames=args.max_frames,
         frame_order=args.eval_frame_order,
         slice_framepos=args.slice_framepos,
+        prompt_gen=args.prompt_gen if hasattr(args, 'prompt_gen') else None
     )
     dataloader_msrvtt = DataLoader(
         msrvtt_testset,
@@ -119,7 +120,7 @@ def dataloader_lsmdc_train(args, tokenizer):
         max_frames=args.max_frames,
         frame_order=args.train_frame_order,
         slice_framepos=args.slice_framepos,
-        
+
     )
 
     train_sampler = torch.utils.data.distributed.DistributedSampler(lsmdc_dataset)
@@ -304,7 +305,7 @@ def dataloader_vatex_test(args, tokenizer, subset="test"):
         drop_last=False,
     )
     return dataloader_msrvtt, len(vatex_testset)
-    
+
 
 DATALOADER_DICT = {}
 DATALOADER_DICT["msrvtt"] = {"train":dataloader_msrvtt_train, "val":dataloader_msrvtt_test, "test":None}

@@ -24,27 +24,32 @@ try:
     logging.getLogger('nose').setLevel(logging.WARNING)
 except:
     client = None
-    
+
 from decord import VideoReader, cpu
 import torch
 from PIL import Image
 from torchvision.transforms import Compose, Resize, CenterCrop, ToTensor, Normalize, InterpolationMode
-    
+
 class MSRVTT_DataLoader(Dataset):
     """MSRVTT dataset loader."""
     def __init__(
             self,
-            csv_path,
-            features_path,
-            tokenizer,
+            csv_path=None,
+            features_path=None,
+            tokenizer=None,
             max_words=30,
             feature_framerate=1.0,
             max_frames=100,
             image_resolution=224,
             frame_order=0,
             slice_framepos=0,
+            prompt_gen=None,
     ):
-        self.data = pd.read_csv(csv_path)
+        if csv_path is None:
+            self.data = None
+            self.prompt_gen = prompt_gen
+        else:
+            self.data = pd.read_csv(csv_path)
         self.features_path = features_path
         self.feature_framerate = feature_framerate
         self.max_words = max_words
@@ -72,7 +77,10 @@ class MSRVTT_DataLoader(Dataset):
                 ])
 
     def __len__(self):
-        return len(self.data)
+        if self.data is not None:
+            return len(self.data)
+        else:
+            return len(self.prompt_gen)
 
     def _get_text(self, video_id, sentence):
         choice_video_ids = [video_id]
@@ -113,7 +121,7 @@ class MSRVTT_DataLoader(Dataset):
         # speed up video decode via decord.
         # video_mask = np.zeros(self.max_frames, dtype=np.int_)
         video_mask = np.zeros((len(choice_video_ids), self.max_frames), dtype=np.int_)
-        
+
         # max_video_length = 0
         max_video_length = [0] * len(choice_video_ids)
 
@@ -135,8 +143,10 @@ class MSRVTT_DataLoader(Dataset):
                 end_time = start_time + 1
         # video_path = self.video_dict[video_id]
         for i, video_id in enumerate(choice_video_ids):
-    
+
             video_path = os.path.join(self.features_path, "{}.mp4".format(video_id))
+            if not os.path.isfile(video_path):
+                video_path = os.path.join(self.features_path, f"{int(video_id)//10000}/{video_id}.mp4")
 
             if video_path.startswith("s3://"):
                 video_path = video_path.replace('videos', 'MSRVTT_Videos')
@@ -146,7 +156,7 @@ class MSRVTT_DataLoader(Dataset):
                 if isinstance(video_path, bytes):
                     video_path = io.BytesIO(video_bytes)
             vreader = VideoReader(video_path, ctx=cpu(0))
-        
+
             fps = vreader.get_avg_fps()
             f_start = 0 if start_time is None else int(start_time * fps)
             f_end = int(min(1000000000 if end_time is None else end_time * fps, len(vreader) - 1))
@@ -165,9 +175,9 @@ class MSRVTT_DataLoader(Dataset):
 
                 patch_images = [Image.fromarray(f) for f in vreader.get_batch(sample_pos).asnumpy()]
                 patch_images = torch.stack([self.transform(img) for img in patch_images])
-                
+
                 patch_images = patch_images.unsqueeze(1)
-                
+
                 slice_len = patch_images.shape[0]
                 # max_video_length = max_video_length if max_video_length > slice_len else slice_len
                 max_video_length[i] = max_video_length[i] if max_video_length[i] > slice_len else slice_len
@@ -184,7 +194,7 @@ class MSRVTT_DataLoader(Dataset):
 
         #print(video.shape, video_mask.shape)
         return video, video_mask
-    
+
     def _get_rawvideo(self, choice_video_ids):
         video_mask = np.zeros((len(choice_video_ids), self.max_frames), dtype=np.int_)
         max_video_length = [0] * len(choice_video_ids)
@@ -233,8 +243,11 @@ class MSRVTT_DataLoader(Dataset):
         return video, video_mask
 
     def __getitem__(self, idx):
-        video_id = self.data['video_id'].values[idx]
-        sentence = self.data['sentence'].values[idx]
+        if self.data is None:
+            sentence, _, video_id = self.prompt_gen[idx]
+        else:
+            video_id = self.data['video_id'].values[idx]
+            sentence = self.data['sentence'].values[idx]
 
         pairs_text, pairs_mask, pairs_segment, choice_video_ids = self._get_text(video_id, sentence)
         # video, video_mask = self._get_rawvideo(choice_video_ids)
@@ -311,7 +324,7 @@ class MSRVTT_TrainDataLoader(Dataset):
                     Normalize((0.48145466, 0.4578275, 0.40821073), (0.26862954, 0.26130258, 0.27577711)),
                     # Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
                 ])
-        
+
     def __len__(self):
         return self.sample_len
 
@@ -362,7 +375,7 @@ class MSRVTT_TrainDataLoader(Dataset):
         # speed up video decode via decord.
         # video_mask = np.zeros(self.max_frames, dtype=np.int_)
         video_mask = np.zeros((len(choice_video_ids), self.max_frames), dtype=np.int_)
-        
+
         # max_video_length = 0
         max_video_length = [0] * len(choice_video_ids)
 
@@ -384,9 +397,9 @@ class MSRVTT_TrainDataLoader(Dataset):
                 end_time = start_time + 1
         # video_path = self.video_dict[video_id]
         for i, video_id in enumerate(choice_video_ids):
-    
+
             video_path = os.path.join(self.features_path, "{}.mp4".format(video_id))
-            
+
             if video_path.startswith("s3://"):
                 video_path = video_path.replace('videos', 'MSRVTT_Videos')
                 video_bytes = client.get(video_path, enable_stream=True)
@@ -395,7 +408,7 @@ class MSRVTT_TrainDataLoader(Dataset):
                 if isinstance(video_path, bytes):
                     video_path = io.BytesIO(video_bytes)
             vreader = VideoReader(video_path, ctx=cpu(0))
-        
+
             fps = vreader.get_avg_fps()
             f_start = 0 if start_time is None else int(start_time * fps)
             f_end = int(min(1000000000 if end_time is None else end_time * fps, len(vreader) - 1))
@@ -414,9 +427,9 @@ class MSRVTT_TrainDataLoader(Dataset):
 
                 patch_images = [Image.fromarray(f) for f in vreader.get_batch(sample_pos).asnumpy()]
                 patch_images = torch.stack([self.transform(img) for img in patch_images])
-                
+
                 patch_images = patch_images.unsqueeze(1)
-                
+
                 slice_len = patch_images.shape[0]
                 # max_video_length = max_video_length if max_video_length > slice_len else slice_len
                 max_video_length[i] = max_video_length[i] if max_video_length[i] > slice_len else slice_len
@@ -433,7 +446,7 @@ class MSRVTT_TrainDataLoader(Dataset):
 
         #print(video.shape, video_mask.shape)
         return video, video_mask
-    
+
     def _get_rawvideo(self, choice_video_ids):
         video_mask = np.zeros((len(choice_video_ids), self.max_frames), dtype=np.int_)
         max_video_length = [0] * len(choice_video_ids)
